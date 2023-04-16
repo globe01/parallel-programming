@@ -108,7 +108,7 @@ void Serial()
                                 temp = temp >> 1;
                                 t++;
                             }
-                            t += m * 32;
+                            t += (column - m - 1) * 32;
                             break;
                         }
                     }

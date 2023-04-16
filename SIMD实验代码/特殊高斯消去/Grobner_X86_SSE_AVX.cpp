@@ -13,8 +13,8 @@
 using namespace std;
 
 //样例9
-//unsigned int Core[37960][1188] = { 0 };//存消元子是否为0
-//unsigned int Rows[37960][1188] = { 0 };//被消元行
+//unsigned int Core[37960][1188] = {0};//存消元子是否为0
+//unsigned int Rows[37960][1188] = {0};//被消元行
 //const int Rows_num = 14291;//被消元行数
 //const int N = 1187;
 //const int column = 37960;//矩阵列数
@@ -22,8 +22,8 @@ using namespace std;
 
 
 //样例8
-unsigned int Core[23075][722] = { 0 };//存消元子是否为0
-unsigned int Rows[23075][722] = { 0 };//被消元行
+unsigned int Core[23075][722] = {0};//存消元子是否为0
+unsigned int Rows[23075][722] = {0};//被消元行
 const int Rows_num = 14325;//被消元行数
 const int N = 721;
 const int column = 23075;//矩阵列数
@@ -111,12 +111,11 @@ void Serial()
                                 temp = temp >> 1;
                                 t++;
                             }
-                            t += m * 32;
+                            t += (column-m-1) * 32;
                             break;
                         }
                     }
                     Rows[j][N] = t - 1;
-
                 }
                 else//消元子为空，被消元行升格为消元子
                 {
