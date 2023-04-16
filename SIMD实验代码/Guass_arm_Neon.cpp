@@ -4,7 +4,7 @@
 
 using namespace std;
 
-const int n = 500;
+const int n = 250;//500,1000
 float M[n][n];
 float T[n][n];
 
@@ -50,16 +50,16 @@ void serial()
     {
         for (int j = k + 1; j < n; j++)
         {
-            M[k][j] = M[k][j] * 1.0 / M[k][k];
+            M[k][j] = M[k][j] * 1.0 / M[k][k];//除法步骤，整行除以第一个的系数
         }
         M[k][k] = 1.0;
         for (int i = k + 1; i < n; i++)
         {
             for (int j = k + 1; j < n; j++)
             {
-                M[i][j] = M[i][j] - M[i][k] * M[k][j];
+                M[i][j] = M[i][j] - M[i][k] * M[k][j];//消去步骤
             }
-            M[i][k] = 0;
+            M[i][k] = 0;//左下角化为0了
         }
     }
 }
@@ -72,7 +72,7 @@ void serial_cache()
         for (int j = 0; j < i; j++)
         {
             T[j][i] = M[i][j];
-            M[i][j] = 0; // 相当于原来的 M[i][k] = 0;
+            M[i][j] = 0;
         }
     }
     for (int k = 0; k < n; k++)
@@ -88,7 +88,6 @@ void serial_cache()
             {
                 M[i][j] = M[i][j] - T[k][i] * M[k][j];
             }
-            //M[i][k] = 0;
         }
     }
 }
@@ -125,7 +124,6 @@ void Neon()
                 vaij = vld1q_f32(&(M[i][j]));
                 vx = vmulq_f32(vakj, vaik);
                 vaij = vsubq_f32(vaij, vx);
-
                 vst1q_f32(&M[i][j], vaij);
             }
             for (; j < n; j++)
@@ -145,7 +143,7 @@ void Neon_cache()
         for (int j = 0; j < i; j++)
         {
             T[j][i] = M[i][j];
-            M[i][j] = 0; // 相当于原来的 M[i][k] = 0;
+            M[i][j] = 0;
         }
     }
     for (int k = 0; k < n; k++)
@@ -196,12 +194,13 @@ void Neon_Alignment()
         //串行算法中二重循环的优化
         float32x4_t vt = vmovq_n_f32(M[k][k]);
         int j = k + 1;
-        //对齐优化
+        //对齐优化，先串行处理到对齐边界
         while ((k * n + j) % 4 != 0)
         {
             M[k][j] = M[k][j] * 1.0 / M[k][k];
             j++;
         }
+        //其余并行处理
         for (; j + 4 <= n; j += 4)
         {
             va = vld1q_f32(&M[k][j]);//将四个单精度浮点数从内存加载到向量寄存器
@@ -218,13 +217,15 @@ void Neon_Alignment()
         {
             vaik = vmovq_n_f32(M[i][k]);
             int j = k + 1;
-            //对齐优化
+            //对齐优化，先串行处理到对齐边界
             while ((i * n + j) % 4 != 0)
             {
                 M[i][j] = M[i][j] - M[k][j] * M[i][k];
                 j++;
             }
-            for (; j + 4 <= n; j += 4) {
+            //其余并行处理
+            for (; j + 4 <= n; j += 4) 
+            {
                 vakj = vld1q_f32(&M[k][j]);
                 vaij = vld1q_f32(&M[i][j]);
                 vx = vmulq_f32(vakj, vaik);

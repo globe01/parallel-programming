@@ -9,7 +9,7 @@
 #include <immintrin.h> //AVX、AVX2、AVX-512
 using namespace std;
 
-const int N = 1000;//问题规模
+const int N = 250;//问题规模250,500,1000
 float M[N][N];
 
 //测试用例生成
@@ -44,16 +44,16 @@ void Serial()
 	{
 		for (int j = k + 1; j < N; j++)
 		{
-			M[k][j] = M[k][j] * 1.0 / M[k][k];
+			M[k][j] = M[k][j] * 1.0 / M[k][k];//除法步骤，整行除以第一个的系数
 		}
 		M[k][k] = 1.0;
 		for (int i = k + 1; i < N; i++)
 		{
 			for (int j = k + 1; j < N; j++)
 			{
-				M[i][j] = M[i][j] - M[i][k] * M[k][j];
+				M[i][j] = M[i][j] - M[i][k] * M[k][j];//消去步骤
 			}
-			M[i][k] = 0;
+			M[i][k] = 0;//左下角化为0了
 		}
 	}
 }
@@ -102,41 +102,51 @@ void SSE()
 
 //SSE优化 对齐
 void SSE_Alignment() {
-	for (int k = 0; k < N; k++) {
+	for (int k = 0; k < N; k++) 
+	{
 		//串行算法中二重循环的优化
 		vt = _mm_set_ps(M[k][k], M[k][k], M[k][k], M[k][k]);
 		int j = k + 1;
-		//对齐优化
-		while ((k * N + j) % 4 != 0) {
+		//对齐优化，先串行处理到对齐边界
+		while ((k * N + j) % 4 != 0) 
+		{
 			M[k][j] = M[k][j] * 1.0 / M[k][k];
 			j++;	
 		}
-		for (; j + 4 <= N; j += 4) {
+		//其余并行处理
+		for (; j + 4 <= N; j += 4) 
+		{
 			va = _mm_load_ps(&(M[k][j]));//将四个单精度浮点数从内存加载到向量寄存器
 			va = _mm_div_ps(va, vt);//向量对位相除
 			_mm_store_ps(&(M[k][j]), va);//将四个单精度浮点数从向量寄存器存储到内存
 		}
-		for (; j < N; j++) {
+		for (; j < N; j++) 
+		{
 			M[k][j] = M[k][j] * 1.0 / M[k][k];//该行结尾处有几个元素还未计算
 		}
 		M[k][k] = 1.0;
 		//串行算法中三重循环的优化
-		for (int i = k + 1; i < N; i++) {
+		for (int i = k + 1; i < N; i++) 
+		{
 			vaik = _mm_set_ps(M[i][k], M[i][k], M[i][k], M[i][k]);
 			int j = k + 1;
-			//对齐优化
-			while ((i * N + j) % 4 != 0) {
+			//对齐优化，先串行处理到对齐边界
+			while ((i * N + j) % 4 != 0) 
+			{
 				M[i][j] = M[i][j] - M[k][j] * M[i][k];
 				j++;
 			}
-			for (; j + 4 <= N; j += 4) {
+			//其余并行处理
+			for (; j + 4 <= N; j += 4) 
+			{
 				vakj = _mm_load_ps(&(M[k][j]));
 				vaij = _mm_load_ps(&(M[i][j]));
 				vx = _mm_mul_ps(vakj, vaik);
 				vaij = _mm_sub_ps(vaij, vx);
 				_mm_store_ps(&M[i][j], vaij);
 			}
-			for (; j < N; j++) {
+			for (; j < N; j++) 
+			{
 				M[i][j] = M[i][j] - M[k][j] * M[i][k];
 			}
 			M[i][k] = 0.0;
@@ -450,7 +460,7 @@ int main(){
 	seconds = (tail - head) * 1000.0 / freq;
 	cout << "Serial：" << seconds << " ms" << endl;
 
-	//测量SSE（不对齐）时间
+	//测量SSE（未对齐）时间
 	m_reset();
 	QueryPerformanceCounter((LARGE_INTEGER*)&head);
 	//计时开始
