@@ -8,13 +8,12 @@
 #include <nmmintrin.h> //SSSE4.2
 #include <immintrin.h> //AVX、AVX2、AVX-512
 #include <pthread.h>//pthread
+#include <semaphore.h>//信号量
 #pragma comment(lib, "pthreadVC2.lib")
-
 using namespace std;
 
-const int N = 1000;//问题规模500,1000,1500
+const int N = 1000;
 float M[N][N];
-
 
 //测试用例生成
 void m_reset()
@@ -62,31 +61,64 @@ void Serial()
 	}
 }
 
-//定义线程数据结构及线程函数
+//静态线程 +barrier 同步
+
+//线程数据结构定义
 struct threadParam_t
 {
-	int k; //消去的轮次
-	int t_id; // 线程 id
+	int t_id; //线程id
 };
-int worker_count = 5; //工作线程数量
-void* threadFunc(void* param) {
+
+int NUM_THREADS = 5;
+
+//barrier 定义
+pthread_barrier_t barrier_Divsion;
+pthread_barrier_t barrier_Elimination;
+
+
+//线程函数定义
+void* threadFunc(void* param)
+{
 	threadParam_t* p = (threadParam_t*)param;
-	int k = p->k; //消去的轮次
-	int t_id = p->t_id; //线程编号
-	int i = k + t_id + 1; //获取自己的计算任务
-	for (int j = k; j < N; ++j) {
-		M[i][j] = M[i][j] - M[i][k] * M[k][j];
+	int t_id = p->t_id;
+
+	for (int k = 0; k < N; ++k)
+	{
+		// t_id 为 0 的线程做除法操作，其它工作线程先等待
+		if (t_id == 0)
+		{
+			for (int j = k + 1; j < N; j++)
+			{
+				M[k][j] = M[k][j] * 1.0 / M[k][k];
+			}
+			M[k][k] = 1.0;
+		}
+
+		//第一个同步点
+		pthread_barrier_wait(&barrier_Divsion);
+
+		//循环划分任务
+		for (int i = k + 1 + t_id; i < N; i += NUM_THREADS)
+		{
+			//消去
+			for (int j = k + 1; j < N; ++j)
+			{
+				M[i][j] = M[i][j] - M[i][k] * M[k][j];
+			}
+			M[i][k] = 0.0;
+		}
+
+		// 第二个同步点
+		pthread_barrier_wait(&barrier_Elimination);
+
 	}
-	M[i][k] = 0;
 	pthread_exit(NULL);
 	return 0;
 }
 
-
 int main(){
-	double seconds;//总时间
+	double seconds;
 	long long head, tail, freq;
-
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
 
 	//测量串行时间
@@ -97,45 +129,34 @@ int main(){
 	seconds = (tail - head) * 1000.0 / freq;
 	cout << "串行：" << seconds << "毫秒" << endl;
 
-	//测量pthread动态线程时间
 	m_reset();
 	QueryPerformanceCounter((LARGE_INTEGER*)&head);
 
-	for (int k = 0; k < N; ++k)
+	//初始化barrier
+	pthread_barrier_init(&barrier_Divsion, NULL, NUM_THREADS);
+	pthread_barrier_init(&barrier_Elimination, NULL, NUM_THREADS);
+
+	//创建线程
+	pthread_t* handles = new pthread_t[NUM_THREADS];// 创建对应的 Handle
+	threadParam_t* param = new threadParam_t[NUM_THREADS];// 创建对应的线程数据结构
+	for (int t_id = 0; t_id < NUM_THREADS; t_id++)
 	{
-		//主线程做除法操作
-		//串行算法中二重循环的优化
-		for (int j = k + 1; j < N; j++)
-		{
-			M[k][j] = M[k][j] / M[k][k];
-		}
-		M[k][k] = 1.0;
-		//串行算法中三重循环的优化
-		//各行之间互不影响，可采用多线程执行
-
-		//创建工作线程，进行消去操作
-		//工作线程数量worker_count
-		pthread_t* handles = new pthread_t[worker_count];// 创建对应的 Handle
-		threadParam_t* param = new threadParam_t[worker_count];// 创建对应的线程数据结构
-
-		//分配任务
-		for (int t_id = 0; t_id < worker_count; t_id++)
-		{
-			param[t_id].k = k;
-			param[t_id].t_id = t_id;
-		}
-		//创建线程
-		for (int t_id = 0; t_id < worker_count; t_id++) {
-			pthread_create(&handles[t_id], NULL, threadFunc, (void*)&param[t_id]);
-		}
-
-		//主线程挂起等待所有的工作线程完成此轮消去工作
-		for (int t_id = 0; t_id < worker_count; t_id++) {
-			pthread_join(handles[t_id], NULL);
-		}
+		param[t_id].t_id = t_id;
+		pthread_create(&handles[t_id], NULL, threadFunc, (void*)&param[t_id]);
 	}
+
+
+	for (int t_id = 0; t_id < NUM_THREADS; t_id++)
+		pthread_join(handles[t_id], NULL);
+
+	//销毁所有的 barrier
+	pthread_barrier_destroy(&barrier_Divsion);
+	pthread_barrier_destroy(&barrier_Elimination);
+
 	QueryPerformanceCounter((LARGE_INTEGER*)&tail);
 	seconds = (tail - head) * 1000.0 / freq;
-	cout << "pthread动态线程: " << seconds << "毫秒" << endl;
-	return 0;
+
+	cout << "pthread静态线程 +barrier 同步：" << seconds << "毫秒" << endl;
+
+
 }

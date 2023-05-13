@@ -160,5 +160,5 @@ int main(){
 	QueryPerformanceCounter((LARGE_INTEGER*)&tail);
 	seconds = (tail - head) * 1000.0 / freq;
 	cout << "pthread¶¯Ì¬Ïß³Ì+AVX: " << seconds << "ºÁÃë" << endl;
-
+	return 0;
 }
