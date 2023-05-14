@@ -4,27 +4,8 @@
 #include <fstream>
 #include <semaphore.h>
 #include <sys/time.h>
-# include <arm_neon.h> // use Neon
+# include <arm_neon.h> 
 using namespace std;
-
-
-//
-//unsigned int Core[8399][264] = { 0 };
-//unsigned int Rows[8399][264] = { 0 };
-//
-//const int N = 263;
-//const int Rows_num = 4535;
-//const int column = 8399;
-//
-//
-//
-//unsigned int Core[23045][722] = { 0 };
-//unsigned int Rows[23045][722] = { 0 };
-//
-//const int N = 721;
-//const int Rows_num = 14325;
-//const int column = 23075;
-
 
 
 unsigned int Core[37960][1188] = { 0 };
@@ -33,17 +14,6 @@ unsigned int Rows[37960][1188] = { 0 };
 const int N = 1187;
 const int Rows_num = 14291;
 const int column = 37960;
-
-
-
-//unsigned int Core[43577][1363] = { 0 };
-//unsigned int Rows[54274][1363] = { 0 };
-//
-//const int N = 1362;
-//const int Rows_num = 54274;
-//const int column = 43577;
-
-
 
 
 const int NUM_THREADS = 5; //线程数
@@ -56,7 +26,6 @@ struct threadParam_t
 {
     int t_id; // 线程 id
 };
-
 
 
 
@@ -93,7 +62,7 @@ void Core_reset()
 void Rows_reset()
 {
     unsigned int a;
-    ifstream infile("pas3.txt");
+    ifstream infile("Rows_9.txt");
     char fin[10000] = { 0 };
     int index = 0;
     while (infile.getline(fin, sizeof(fin)))
