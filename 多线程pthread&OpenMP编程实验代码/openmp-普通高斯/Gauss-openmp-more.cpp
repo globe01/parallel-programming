@@ -73,27 +73,27 @@ void Static()
 {
 #pragma omp parallel num_threads(NUM_THREADS)
 
-	for (int k = 0; k < n; k++)
+	for (int k = 0; k < N; k++)
 	{
 		//串行部分
 #pragma omp single
 		{
-			float tmp = A[k][k];
-			for (int j = k + 1; j < n; j++)
+			float tmp = M[k][k];
+			for (int j = k + 1; j < N; j++)
 			{
-				A[k][j] = A[k][j] / tmp;
+				M[k][j] = M[k][j] / tmp;
 			}
-			A[k][k] = 1.0;
+			M[k][k] = 1.0;
 		}
 
 		//并行部分
 #pragma omp for schedule(static)
-		for (int i = k + 1; i < n; i++)
+		for (int i = k + 1; i < N; i++)
 		{
-			float tmp = A[i][k];
-			for (int j = k + 1; j < n; j++)
-				A[i][j] = A[i][j] - tmp * A[k][j];
-			A[i][k] = 0;
+			float tmp = M[i][k];
+			for (int j = k + 1; j < N; j++)
+				M[i][j] = M[i][j] - tmp * M[k][j];
+			M[i][k] = 0.0;
 		}
 		// 离开for循环时，各个线程默认同步，进入下一行的处理
 	}
