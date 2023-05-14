@@ -7,43 +7,12 @@
 #include <semaphore.h>//信号量
 using namespace std;
 
-
-
-//unsigned int Core[8399][264] = { 0 };
-//unsigned int Rows[8399][264] = { 0 };
-//
-//const int N = 263;
-//const int Rows_num = 4535;
-//const int column = 8399;
-
-
-
-
-
-//unsigned int Core[23045][722] = { 0 };
-//unsigned int Rows[23045][722] = { 0 };
-//
-//const int N = 721;
-//const int Rows_num = 14325;
-//const int column = 23075;
-
-
-
 unsigned int Core[37960][1188] = { 0 };
 unsigned int Rows[37960][1188] = { 0 };
 
 const int N = 1187;
 const int Rows_num = 14291;
 const int column = 37960;
-
-
-
-//unsigned int Core[43577][1363] = { 0 };
-//unsigned int Rows[54274][1363] = { 0 };
-//
-//const int N = 1362;
-//const int Rows_num = 54274;
-//const int column = 43577;
 
 
 int NUM_THREADS = 5;//线程数
@@ -59,7 +28,7 @@ struct threadParam_t
 };
 
 //读取消元子并初始化
-void init_A()
+void Core_reset()
 {
     unsigned int a;
     ifstream infile("Core_9.txt");
@@ -212,7 +181,7 @@ void* threadFunc(void* param)
 
 int main()
 {
-    init_A();
+    Core_reset();
     Rows_reset();
 
     struct timeval head, tail;
