@@ -89,7 +89,7 @@ void init_A()
 void Rows_reset()
 {
     unsigned int a;
-    ifstream infile("pas3.txt");
+    ifstream infile("Rows_9.txt");
     char fin[10000] = { 0 };
     int index = 0;
     while (infile.getline(fin, sizeof(fin)))
