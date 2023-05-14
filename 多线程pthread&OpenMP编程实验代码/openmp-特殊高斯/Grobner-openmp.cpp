@@ -18,9 +18,7 @@ const int column = 37960;
 
 const int NUM_THREADS = 5; //线程数
 
-
-//全局变量定义，用于判断接下来是否进入下一轮
-bool sign;
+bool sign;//标志循环结束
 
 struct threadParam_t
 {
@@ -226,7 +224,7 @@ int main()
     Serial();
     gettimeofday(&tail, NULL);
     seconds = ((tail.tv_sec - head.tv_sec) * 1000000 + (tail.tv_usec - head.tv_usec)) / 1000.0;
-    cout << "Serial：" << seconds << "ms" << endl;
+    cout << "Serial:" << seconds << "ms" << endl;
 
     Core_reset();
     Rows_reset();
@@ -234,7 +232,7 @@ int main()
     openmp();
     gettimeofday(&tail, NULL);
     seconds = ((tail.tv_sec - head.tv_sec) * 1000000 + (tail.tv_usec - head.tv_usec)) / 1000.0;
-    cout << "openmp：" << seconds << "ms" << endl;
+    cout << "openmp:" << seconds << "ms" << endl;
 
     return 0;
 }
