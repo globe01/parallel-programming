@@ -1,10 +1,10 @@
 #include <omp.h>
 #include <iostream>
 #include <sys/time.h>
-# include <arm_neon.h> // use Neon
+# include <arm_neon.h>
 using namespace std;
 
-const int N = 500;
+const int N = 1500;
 
 
 
@@ -69,7 +69,35 @@ void Serial()
 		}
 	}
 }
+void Static()
+{
+#pragma omp parallel num_threads(NUM_THREADS)
 
+	for (int k = 0; k < n; k++)
+	{
+		//串行部分
+#pragma omp single
+		{
+			float tmp = A[k][k];
+			for (int j = k + 1; j < n; j++)
+			{
+				A[k][j] = A[k][j] / tmp;
+			}
+			A[k][k] = 1.0;
+		}
+
+		//并行部分
+#pragma omp for schedule(static)
+		for (int i = k + 1; i < n; i++)
+		{
+			float tmp = A[i][k];
+			for (int j = k + 1; j < n; j++)
+				A[i][j] = A[i][j] - tmp * A[k][j];
+			A[i][k] = 0;
+		}
+		// 离开for循环时，各个线程默认同步，进入下一行的处理
+	}
+}
 void Static_simd()
 {
 #pragma omp parallel num_threads(NUM_THREADS)
@@ -160,7 +188,65 @@ void Static_neon_barrier()
 }
 
 
-//静态 neon 除法也并行
+//每次循环均重新创建线程
+void Static_create_dy()
+{
+	float32x4_t va = vmovq_n_f32(0);
+	float32x4_t vx = vmovq_n_f32(0);
+	float32x4_t vaij = vmovq_n_f32(0);
+	float32x4_t vaik = vmovq_n_f32(0);
+	float32x4_t vakj = vmovq_n_f32(0);
+
+	for (int k = 0; k < N; k++)
+	{
+		//串行部分
+		{
+			float32x4_t vt = vmovq_n_f32(M[k][k]);
+			int j;
+			for (j = k + 1; j < N; j++)
+			{
+				va = vld1q_f32(&(M[k][j]));
+				va = vdivq_f32(va, vt);
+				vst1q_f32(&(M[k][j]), va);
+			}
+			for (; j < N; j++)
+			{
+				M[k][j] = M[k][j] * 1.0 / M[k][k];
+
+			}
+			M[k][k] = 1.0;
+		}
+
+		//并行部分
+#pragma omp parallel for num_threads(NUM_THREADS), private(va, vx, vaij, vaik,vakj) ,schedule(static)
+		for (int i = k + 1; i < N; i++)
+		{
+			vaik = vmovq_n_f32(M[i][k]);
+			int j;
+			for (j = k + 1; j + 4 <= N; j += 4)
+			{
+				vakj = vld1q_f32(&(M[k][j]));
+				vaij = vld1q_f32(&(M[i][j]));
+				vx = vmulq_f32(vakj, vaik);
+				vaij = vsubq_f32(vaij, vx);
+
+				vst1q_f32(&M[i][j], vaij);
+			}
+
+			for (; j < N; j++)
+			{
+				M[i][j] = M[i][j] - M[i][k] * M[k][j];
+			}
+
+			M[i][k] = 0;
+		}
+	}
+}
+
+
+
+
+//静态 neon 二重循环的除法部分也并行化
 void Static_neon_division()
 {
 	float32x4_t va = vmovq_n_f32(0);
@@ -172,6 +258,7 @@ void Static_neon_division()
 #pragma omp parallel num_threads(NUM_THREADS), private(va, vx, vaij, vaik,vakj)
 	for (int k = 0; k < N; k++)
 	{
+		//除法部分
 #pragma omp for schedule(static)
 		for (int j = k + 1; j < N; j++)
 		{
@@ -240,12 +327,21 @@ int main()
 	seconds = ((tail.tv_sec - head.tv_sec) * 1000000 + (tail.tv_usec - head.tv_usec)) / 1000.0;
 	cout << "Static_simd: " << seconds << "ms" << endl;
 
+
 	newM();
 	gettimeofday(&head, NULL);
 	Static_neon_barrier();
 	gettimeofday(&tail, NULL);
 	seconds = ((tail.tv_sec - head.tv_sec) * 1000000 + (tail.tv_usec - head.tv_usec)) / 1000.0;
 	cout << "Static_neon_barrier: " << seconds << "ms" << endl;
+	
+	newM();
+	gettimeofday(&head, NULL);
+	Static_create_dy();
+	gettimeofday(&tail, NULL);
+	seconds = ((tail.tv_sec - head.tv_sec) * 1000000 + (tail.tv_usec - head.tv_usec)) / 1000.0;
+	cout << "Static_create_dy: " << seconds << "ms" << endl;
+
 
 
 	newM();
