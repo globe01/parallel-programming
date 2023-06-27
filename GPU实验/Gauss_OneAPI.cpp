@@ -1,11 +1,13 @@
 #include <iostream>
 #include <CL/sycl.hpp>
 #include <chrono>
+#include <cstdlib>
+#include <ctime>
 
 using namespace std;
 using namespace cl::sycl;
 
-const int N = 250; // 问题规模250,500,1000
+const int N = 500; // 问题规模500,1000,1500
 float M[N][N];
 
 // 测试用例生成
@@ -81,6 +83,8 @@ void Parallel(queue& q)
 
 int main()
 {
+    srand(time(nullptr)); // 初始化随机数种子
+
     queue q;
 
     m_reset(q);
